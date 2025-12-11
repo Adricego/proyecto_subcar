@@ -1,0 +1,156 @@
+// =============================
+// 1. Configuración base
+// =============================
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =============================
+// 2. Enums del dominio
+// =============================
+
+enum Role {
+  ADMIN
+  SALES
+  CUSTOMER
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  RETIRED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  CANCELLED
+  FINISHED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PaymentSummaryStatus {
+  OK
+  LATE
+  IN_ARREARS
+}
+
+enum Currency {
+  CLP
+}
+
+// =============================
+// 3. Modelos (tablas)
+// =============================
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String // aquí guardaremos el hash, no la contraseña en claro
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer?
+}
+
+model Customer {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  documentNumber String? // RUT u otro identificador
+  phone          String?
+  address        String?
+  city           String?
+  country        String?
+  dateOfBirth    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  subscriptions Subscription[]
+}
+
+model SubscriptionPlan {
+  id                  String   @id @default(uuid())
+  name                String
+  description         String?
+  monthlyPrice        Decimal  @db.Decimal(10, 2)
+  maxKmPerMonth       Int?
+  extraKmPrice        Decimal? @db.Decimal(10, 2)
+  minCommitmentMonths Int?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Vehicle {
+  id             String        @id @default(uuid())
+  plate          String        @unique
+  brand          String
+  model          String
+  year           Int
+  vin            String?
+  color          String?
+  currentMileage Int           @default(0)
+  status         VehicleStatus @default(AVAILABLE)
+  location       String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id            String               @id @default(uuid())
+  customerId    String
+  planId        String
+  vehicleId     String?
+  status        SubscriptionStatus   @default(PENDING)
+  startDate     DateTime
+  endDate       DateTime?
+  billingDay    Int // 1-28 recomendado
+  paymentStatus PaymentSummaryStatus @default(OK)
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  customer Customer         @relation(fields: [customerId], references: [id])
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  vehicle  Vehicle?         @relation(fields: [vehicleId], references: [id])
+
+  payments Payment[]
+}
+
+model Payment {
+  id                     String        @id @default(uuid())
+  subscriptionId         String
+  amount                 Decimal       @db.Decimal(10, 2)
+  currency               Currency      @default(CLP)
+  billingPeriodStart     DateTime
+  billingPeriodEnd       DateTime
+  status                 PaymentStatus @default(PENDING)
+  simulatedProvider      String? // ej: "FAKEPAY"
+  simulatedTransactionId String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+}

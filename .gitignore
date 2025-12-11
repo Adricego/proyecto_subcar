@@ -1,0 +1,19 @@
+# Node
+node_modules/
+dist/
+
+# Backend específico
+backend/node_modules/
+backend/dist/
+
+# Entornos
+.env
+backend/.env
+
+# Prisma
+prisma/migrations/
+
+# Editor / SO
+.vscode/
+.DS_Store
+Thumbs.db
